@@ -37,3 +37,21 @@ class expensesApi(admin.ModelAdmin):
     list_display = [
         'expense', 'amount', 'date'
     ]
+    
+    
+    
+    
+@admin.register(AdvancesType)
+class AdvancesTypeApi(admin.ModelAdmin):
+    list_display = [
+        'Advances_type'
+    ]
+    
+    
+    
+    
+@admin.register(Advances)
+class AdvancesApi(admin.ModelAdmin):
+    list_display = [
+        'advances', 'amount', 'date'
+    ]
