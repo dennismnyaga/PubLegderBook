@@ -6,8 +6,8 @@ from .models import employeesAccount
 @admin.register(employeesAccount)
 class employeesAccountApi(admin.ModelAdmin):
     list_display = [
-        'first_name',
-        'last_name',
+        # 'first_name',
+        # 'last_name',
         'idNumber',
         'place_of_residence',
         'club'

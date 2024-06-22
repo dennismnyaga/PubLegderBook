@@ -3,8 +3,12 @@ from .serializers import *
 from .models import *
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from django.contrib.auth.models import User
+# from django.contrib.auth.models import User
 from rest_framework import status
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 
 # Create your views here.
 
@@ -17,8 +21,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['username'] = user.username
-        # token['first_name'] = user.first_name
+        # token['email'] = user.username
+        token['email'] = user.email
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
+        token['phone_number'] = user.phone_number
         return token
 
 

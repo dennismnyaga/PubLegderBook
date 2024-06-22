@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 from datetime import datetime
+from django.utils.dateparse import parse_date
+from django.db.models import Prefetch
 # Create your views here.
 
 
@@ -28,13 +30,16 @@ class ProductsOperations(APIView):
     
     
     def post(self, request, format=None):
-       
+        print('data ', request.data)
+        print('user ', request.user)
         serializer = AddProductSerializer(data=request.data)
         
         if serializer.is_valid():
             print("This ", serializer.validated_data)
-            serializer.save()
+            serializer.save(Owner=request.user)
+            # serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print('This is the error ', serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         
@@ -76,12 +81,12 @@ class StockOperations(APIView):
     
     
     def post(self, request, format=None):
-       
+        print('data ', request.data)
         serializer = AddStockSerializer(data=request.data)
-        print('Serializer ', serializer)
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(who_stocked = request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print('Error message ', serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         
@@ -129,6 +134,53 @@ class StockOperations(APIView):
     
 # -------------------sales records----------------
 
+class SalesGetOperations(APIView):
+    def post(self, request, format=None):
+        print('Request data ', request.data)
+        selected_date = request.data.get('selectedDate')
+        selected_club = request.data.get('selectedClub')
+
+        # Initial queryset for stocks
+        stocks_queryset = Stocks.objects.filter(club__id=selected_club)
+
+        # Optional filtering by date if provided
+        if selected_date:
+            sales_queryset = SalesRecord.objects.filter(sales_date=selected_date)
+        else:
+            sales_queryset = SalesRecord.objects.all()
+
+        # Prefetch sales records with the optional date filter
+        stocks_queryset = stocks_queryset.prefetch_related(
+            Prefetch('salesrecord_set', queryset=sales_queryset, to_attr='sales_records_prefetched')
+        )
+
+        print('Stocks queryset:', stocks_queryset)
+
+        # Serialize the queryset
+        serialize = StocksSerializer(stocks_queryset, many=True)
+        print('Serialized data:', serialize.data)
+        return Response(serialize.data)
+
+    
+    
+    # def post(self, request, format=None):
+    #     selected_date = request.data.get('selectedDate')
+    #     selected_club = request.data.get('selectedClub')
+    #     dat = SalesRecord.objects.all()
+        
+        
+    #     if selected_date:
+    #         parsed_date = parse_date(selected_date)
+    #         if parsed_date:
+    #             dat = dat.filter(sales_date=parsed_date)
+    #             print('Data ', dat)
+        
+    #     if selected_club:
+    #         dat = dat.filter(club__id=selected_club)
+            
+    #     serialize = SalesRecordSerializer(dat, many = True)
+        
+    #     return Response(serialize.data)
    
 class SalesOperations(APIView):
     def get(self, request, format=None):
@@ -141,8 +193,12 @@ class SalesOperations(APIView):
     
     def post(self, request, format=None):       
         serializer = AddSalesSerializer(data=request.data)
+        
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(who_stocked=request.user)
+            if sales_record.recieved_stock:
+                sales_record.product.quantity += sales_record.recieved_stock
+                sales_record.product.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
@@ -153,9 +209,14 @@ class SalesOperations(APIView):
         except SalesRecord.DoesNotExist:
             return Response({"error": "Stock does not exist!"}, status=status.HTTP_404_NOT_FOUND)
         
+        initial_received_stock = instance.recieved_stock or 0
         serializer = AddSalesSerializer(instance=instance,data=request.data, partial=True)
         if serializer.is_valid():         
             serializer.save()
+            if sales_record.recieved_stock != initial_received_stock:
+                stock_difference = (sales_record.recieved_stock or 0) - initial_received_stock
+                sales_record.product.quantity += stock_difference
+                sales_record.product.save()
             return Response(serializer.data, status = status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         

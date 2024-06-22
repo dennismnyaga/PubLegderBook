@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import *
+from clubs.serializers import *
 
 
 
@@ -19,7 +20,7 @@ class ProductSerializer(serializers.ModelSerializer):
 class AddProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Products
-        fields = '__all__'
+        fields = ('id', 'name', 'buying_price', 'selling_price')
         
     def create(self, validated_data):
         print('validate_data ', validated_data)
@@ -77,7 +78,7 @@ class StockSerializer(serializers.ModelSerializer):
 class AddStockSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stocks
-        fields = '__all__'
+        fields = ('id', 'club', 'product_name', 'quantity', 'date_stocked', 'receipt_picture')
         
     def create(self, validated_data):
         return Stocks.objects.create(**validated_data)
@@ -101,12 +102,21 @@ class AddStockSerializer(serializers.ModelSerializer):
 
 
 class SalesRecordSerializer(serializers.ModelSerializer):
+    # club = ClubSerializer()
+    # product = StockSerializer()
     class Meta:
         model = SalesRecord
         fields = '__all__'
         
         
-        
+class StocksSerializer(serializers.ModelSerializer):
+    sales_records = SalesRecordSerializer(many=True, read_only=True, source='sales_records_prefetched')
+    product_name = ProductSerializer()
+    class Meta:
+        model = Stocks
+        fields = '__all__'       
+
+
 
 class AddSalesSerializer(serializers.ModelSerializer):
     class Meta:

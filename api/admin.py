@@ -14,7 +14,7 @@ class productsApi(admin.ModelAdmin):
 @admin.register(Stocks)
 class stockApi(admin.ModelAdmin):
     list_display = [
-        'club', 'product_name', 'quantity', 'total_price', 'date_stocked', 'who_stocked', 'date_edited'
+        'club', 'product_name', 'quantity', 'date_stocked', 'who_stocked', 'date_edited'
     ]
 
 
@@ -28,7 +28,7 @@ class stocksEditedApi(admin.ModelAdmin):
 @admin.register(SalesRecord)
 class salesRecordApi(admin.ModelAdmin):
     list_display = [
-        'product', 'quantity', 'date'
+        'product', 'sales_quantity', 'date'
     ]
 
 

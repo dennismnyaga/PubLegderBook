@@ -13,6 +13,7 @@ path('stocksedited/<int:pk>', views.StockUpdatedHandles.as_view()),
 path('stocksedited/', views.StockUpdatedHandles.as_view()),
 path('salesrecord/<int:pk>', views.SalesOperations.as_view()),
 path('salesrecord/', views.SalesOperations.as_view()),
+path('salesgetrecord/', views.SalesGetOperations.as_view()),
 path('expense/<int:pk>', views.ExpensesOperations.as_view()),
 path('expense/', views.ExpensesOperations.as_view()),
 ]
