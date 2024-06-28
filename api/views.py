@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from .models import *
 from .serializers import *
 from rest_framework.response import Response
@@ -7,6 +7,9 @@ from rest_framework import status
 from datetime import datetime
 from django.utils.dateparse import parse_date
 from django.db.models import Prefetch
+from django.db.models.signals import post_save
+from .signals import create_sales_record
+from rest_framework.parsers import JSONParser
 # Create your views here.
 
 
@@ -136,7 +139,6 @@ class StockOperations(APIView):
 
 class SalesGetOperations(APIView):
     def post(self, request, format=None):
-        print('Request data ', request.data)
         selected_date = request.data.get('selectedDate')
         selected_club = request.data.get('selectedClub')
 
@@ -160,28 +162,95 @@ class SalesGetOperations(APIView):
         serialize = StocksSerializer(stocks_queryset, many=True)
         print('Serialized data:', serialize.data)
         return Response(serialize.data)
+    
+    def put(self, request, format=None):
+        stock_id = request.data.get('id')
+        stock = get_object_or_404(Stocks, id=stock_id)
+       
+        
+        if 'quantity' in request.data:
+            new_quantity = request.data.get('quantity')
+            if stock.quantity is None:
+                stock.quantity = new_quantity
+            else:
+                print('stock not present ', stock.quantity)
+                stock.quantity += int(new_quantity)
+                x = stock.quantity + int(new_quantity)
+                print('new data ', x)
+            stock.save()
 
+            # Update recieved_stock in SalesRecord
+            sales_records = SalesRecord.objects.filter(product=stock)
+            for sales_record in sales_records:
+                if sales_record.recieved_stock is None:
+                    sales_record.recieved_stock += new_quantity
+                else:
+                    sales_record.recieved_stock += int(new_quantity)
+                sales_record.save()
+
+ 
+        stock = Stocks.objects.prefetch_related(
+                    Prefetch('salesrecord_set', queryset=sales_records, to_attr='sales_records_prefetched')
+                ).get(id=stock_id)
+        
+        data = request.data
+        del data['quantity']
+        serializer = StocksSerializer(stock, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            print('Updated data ', serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        print('This is error ', serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
-    # def post(self, request, format=None):
-    #     selected_date = request.data.get('selectedDate')
-    #     selected_club = request.data.get('selectedClub')
-    #     dat = SalesRecord.objects.all()
+class SalesPostSoldOperations(APIView):
+    def put(self, request, format = None):
+        print('closing stock data ', request.data)
+        stock_id = request.data.get('id')
+        stock = get_object_or_404(Stocks, id=stock_id)
         
         
-    #     if selected_date:
-    #         parsed_date = parse_date(selected_date)
-    #         if parsed_date:
-    #             dat = dat.filter(sales_date=parsed_date)
-    #             print('Data ', dat)
+        if 'closingStock' in request.data:
+            closing_stock = request.data.get('closingStock')
+            if stock.quantity is None:
+                return Response({'error': 'Stock quantity is not available.'}, status=status.HTTP_400_BAD_REQUEST)
+                # stock.quantity = new_quantity
+            else:
+                print('stock not present ', stock.quantity)
+                stock.quantity -= int(closing_stock)
+            post_save.disconnect(create_sales_record, sender=Stocks)
+            stock.save()
+
+            # Update recieved_stock in SalesRecord
+            sales_records = SalesRecord.objects.filter(product=stock)
+            for sales_record in sales_records:
+                print('sales ', sales_record)
+                # if sales_record.closing_stock is None:
+                #     sales_record.closing_stock = closing_stock
+                # else:
+                #     sales_record.recieved_stock = int(closing_stock)
+                sales_record.closing_stock = int(closing_stock)
+                sales_record.save()
+                post_save.connect(create_sales_record, sender=Stocks)
+
         
-    #     if selected_club:
-    #         dat = dat.filter(club__id=selected_club)
-            
-    #     serialize = SalesRecordSerializer(dat, many = True)
+        stock = Stocks.objects.prefetch_related(
+                    Prefetch('salesrecord_set', queryset=sales_records, to_attr='sales_records_prefetched')
+                ).get(id=stock_id)
         
-    #     return Response(serialize.data)
-   
+        data = request.data
+        del data['closingStock']
+        serializer = StocksSerializer(stock, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        print('This is error ', serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+  
 class SalesOperations(APIView):
     def get(self, request, format=None):
         dat = SalesRecord.objects.all()
@@ -234,6 +303,29 @@ class SalesOperations(APIView):
         return Response({"Success": "Sales deleted!"},status=status.HTTP_204_NO_CONTENT)
     
     
+    
+    
+# received Stock Operations
+class RecieveStockOperations(APIView):
+    def Put(self, request, format=None):
+        try:
+            sales_record = SalesRecord.objects.get(pk=pk)
+        except Stocks.DoesNotExist:
+            return Response({"error": "Sales Record does not exist!"}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = RecieveSalesStockOperationsSerializer(instance=instance, data=request.data, partial=True)
+        print('Serializer ', serializer)
+        if serializer.is_valid():  
+            recieved_stock = serializer.validated_data.get('recieved_stock')
+            if recieved_stock is not None:
+                # Update the Stocks quantity
+                stock = sales_record.product
+                stock.quantity = stock.quantity + recieved_stock if stock.quantity else recieved_stock
+                stock.save()       
+            serializer.save()
+            return Response(serializer.data, status = status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
     
 # -----------------expenses---------------------
 

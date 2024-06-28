@@ -174,3 +174,10 @@ class AddExpensesSerializer(serializers.ModelSerializer):
         
         return instance
 
+
+
+
+class RecieveSalesStockOperationsSerializer(serializers.ModelSerializer):
+    class Meta:
+        models = SalesRecord
+        fields = ['recieved_stock']
