@@ -147,7 +147,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:9000",
     "http://localhost:3000",
     "exp://192.168.88.250:8081",
-    'http://localhost:5173'
+    'http://localhost:5173',
+    'https://dennismnyaga.github.io/PubLegerBookFrontend'
 ]
 
 
