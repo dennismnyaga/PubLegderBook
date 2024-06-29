@@ -164,12 +164,13 @@ class SalesGetOperations(APIView):
         return Response(serialize.data)
     
     def put(self, request, format=None):
+        print('Data ', request.data)
         stock_id = request.data.get('id')
         stock = get_object_or_404(Stocks, id=stock_id)
        
         
         if 'quantity' in request.data:
-            new_quantity = request.data.get('quantity')
+            new_quantity = int(request.data.get('quantity'))
             if stock.quantity is None:
                 stock.quantity = new_quantity
             else:
@@ -177,16 +178,18 @@ class SalesGetOperations(APIView):
                 stock.quantity += int(new_quantity)
                 x = stock.quantity + int(new_quantity)
                 print('new data ', x)
+            post_save.disconnect(create_sales_record, sender=Stocks)
             stock.save()
 
             # Update recieved_stock in SalesRecord
             sales_records = SalesRecord.objects.filter(product=stock)
             for sales_record in sales_records:
                 if sales_record.recieved_stock is None:
-                    sales_record.recieved_stock += new_quantity
+                    sales_record.recieved_stock = int(new_quantity)
                 else:
                     sales_record.recieved_stock += int(new_quantity)
                 sales_record.save()
+                post_save.connect(create_sales_record, sender=Stocks)
 
  
         stock = Stocks.objects.prefetch_related(
