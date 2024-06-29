@@ -150,8 +150,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "exp://192.168.88.250:8081",
     'http://localhost:5173',
-    'https://dennismnyaga.github.io/PubLegerBookFrontend',
-    'https://dennismnyaga.github.io'
+    'https://dennismnyaga.github.io',
+    'https://clubmaster.barakagaspoint.co.ke'
 ]
 
 
